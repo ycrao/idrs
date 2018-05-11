@@ -11,7 +11,7 @@ cargo build
 cargo run
 ```
 
-### 致谢
+### 其它实现版本
 
 - PHP实现版本 [douyasi/identity-card](https://github.com/douyasi/identity-card)
 - Node/Javascript实现版本 (正在写作中)
