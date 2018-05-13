@@ -1,17 +1,18 @@
 extern crate sqlite;
 extern crate regex;
 extern crate chrono;
+extern crate dotenv;
 
-// use std::path::Path;
-// use sqlite::State;
+
+use sqlite::Value;
 use regex::Regex;
 use std::string::String;
 use chrono::prelude::*;
-use std::error::Error;
-use std::fmt;
 use std::io;
+use dotenv::dotenv;
 
 fn main() {
+    dotenv().ok();
     println!("please input id the identity card (eg 42032319930606629x ): ");
     let mut id = String::new();  // mutable 可改变的
 
@@ -45,26 +46,23 @@ fn main() {
         println!("birthday: {}", birthday);
         let age = get_age(identity);
         println!("age: {}", age);
+        let area = get_area(identity);
+        println!("area: {:?}", area);
     } else {
         let e = validate(identity).err().unwrap();
         println!("error: {:?}", e);
     }
 }
 
-
-/*
-struct Division {
-    id: i32,
-    name: String,
-    using: bool,
+#[derive(Debug)]
+pub struct Area {
+    status: bool,
+    result: String,
+    province: String,
+    city: String,
+    county: String,
+    using: u8
 }
-*/
-
-fn db() {
-    let connetion = sqlite::open("../db/id.sqlite").unwrap();
-
-}
-
 
 pub fn trim(id: &str) -> String {
     let identity = id.trim().to_uppercase();
@@ -104,7 +102,6 @@ fn pass_checksum(id: &str) -> bool {
     let factor : [u8; 17] = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
     let verify : [char; 11] = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
     let mut checksum : u32 = 0;
-    let mut i : u8 = 0;
     let last = identity[17];
     for i in 0..17 {
         let elm = identity[i];
@@ -152,7 +149,7 @@ pub fn get_constellation(id: &str) -> String {
     }
 }
 
-fn get_gender(id: &str) -> String {
+pub fn get_gender(id: &str) -> String {
     let identity = trim(&id);
     let gender : String = identity.chars().skip(16).take(1).collect();
     let g = gender.parse::<u8>().unwrap();
@@ -163,14 +160,60 @@ fn get_gender(id: &str) -> String {
     }
 }
 
-/*
-fn get_area(id: &str) -> Area {
-    let _id = trim(&id);
-    let month : String = _id.chars().skip(10).take(2).collect();
-}
-*/
 
-fn get_age(id: &str) -> i32 {
+pub fn get_area(id: &str) -> Area {
+    let identity = trim(&id);
+    let province : String = identity.chars().take(2).collect();
+    let city : String = identity.chars().take(4).collect();
+    let sufix_province : String = province.to_string() + "0000";
+    // let sufix_province = "677612";
+    let sufix_city : String = city.to_string() + "00";
+    let county : String = identity.chars().take(6).collect();
+    let mut area = Area {
+        status: validate(&identity).is_ok(),
+        result: String::from(""),
+        province: String::from(""),
+        city: String::from(""),
+        county: String::from(""),
+        using: 0
+    };
+
+    let province_re = db_query(sufix_province);
+    let location : String = province_re.0;
+
+    if location.is_empty() {
+        return area;
+    } else {
+        area.province = location;
+        let city_re = db_query(sufix_city);
+        let county_re = db_query(county);
+        area.city = city_re.0.to_string();
+        area.county = county_re.0.to_string();
+        area.result = area.province.to_string() + " " + &area.city + &area.county;
+        area.using = county_re.1;
+        return area;
+    }
+}
+
+fn db_query(division_id: String) -> (String, u8) {
+    let mut name = String::from("");
+    let mut using : u8 = 0;
+    let path = dotenv::var("SQLITE_DB_PATH").unwrap();
+    let connection = sqlite::open(path).unwrap();
+    let mut cursor = connection
+            .prepare("SELECT * FROM divisions WHERE id = ? limit 1")
+            .unwrap()
+            .cursor();
+    cursor.bind(&[Value::String(division_id.to_string())]).unwrap();
+    while let Some(row) = cursor.next().unwrap() {
+        name = row[1].as_string().unwrap().to_string();
+        using = row[2].as_integer().unwrap() as u8;
+    }
+    let tuple = (name, using);
+    return tuple;
+}
+
+pub fn get_age(id: &str) -> i32 {
     let identity = trim(&id);
     let year : String = identity.chars().skip(6).take(4).collect();
     let month : String = identity.chars().skip(10).take(2).collect();
@@ -187,7 +230,7 @@ fn get_age(id: &str) -> i32 {
     return diff;
 }
 
-fn get_birth(id: &str) -> String {
+pub fn get_birth(id: &str) -> String {
     let identity = trim(&id);
     let birthday : String = identity.chars().skip(6).take(8).collect();
     birthday
