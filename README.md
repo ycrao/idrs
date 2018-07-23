@@ -9,7 +9,7 @@ git clone https://github.com/ycrao/idrs
 cd idrs
 cp .env.example .env 
 vim .env 
-// 修改配置中 SQLITE_DB_PATH 值，执行项目数据库文件（请使用绝对路径）
+// 修改配置中 SQLITE_DB_PATH 值，执向项目数据库文件（请使用绝对路径）
 // modify SQLITE_DB_PATH value pointed to your `project/db/id.sqlite` file (using absolute path)
 cargo build
 cargo run
