@@ -40,4 +40,3 @@ area: Area { status: true, result: "湖北省 十堰市竹山县", province: "�
 ### 联系作者
 
 >   Email: raoyc2009#gmail.com （请修改改`#` 为`@`）  
->   QQ群：260655062  
